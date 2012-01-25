@@ -15,10 +15,16 @@ input
   -> Print(MAXLENGTH 40, CONTENTS HEX)
   -> c :: Classifier(12/0800, 12/0806)
   -> CheckIPHeader(14, VERBOSE true)
-  -> ipf :: IPFilter(drop dst port 80, drop src port 80, allow all)
+  -> ipf :: IPFilter(1 dst port 80, 1 src port 80, 0 all)
   -> q :: Queue(20000)
   -> output;
 
+/* Log dropped packets */
+ipf[1]
+  -> PacketLogger2(NBYTES 34)
+  -> Discard;
+
+/* ARP requests subvert filter */
 c[1]
   -> q;
 
