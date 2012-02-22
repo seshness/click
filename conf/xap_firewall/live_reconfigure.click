@@ -12,19 +12,26 @@ output :: ToDevice(eth2);
 input
   // -> Strip(14)
   // -> EtherEncap(0x0800, 08:00:27:4a:fb:c1, 0a:00:27:00:00:02)
-  -> Print(MAXLENGTH 40, CONTENTS HEX)
   -> c :: Classifier(12/0800, 12/0806)
   -> CheckIPHeader(14, VERBOSE true)
   -> ipf :: IPFilter(1 dst port 80, 1 src port 80, 0 all)
-  -> q :: Queue(20000)
+  -> r :: RandomSample(SAMPLE 0.5) /* Log (sample) good packets */
+  -> t :: ToIPSummaryDump(good_packets.log, CONTENTS ip_src sport ip_dst dport ip_len payload)
+  -> q :: Queue(20000);
+
+r[1]
+  -> q;
+
+q
+  -> Print(MAXLENGTH 40, CONTENTS HEX)
   -> output;
 
-/* Log dropped packets */
+/* Log (sample) dropped packets */
 ipf[1]
-  -> PacketLogger2(NBYTES 34)
-  -> Discard;
+  -> RandomSample(SAMPLE 0.5)
+  -> ToIPSummaryDump(bad_packets.log, CONTENTS ip_src sport ip_dst dport ip_len payload);
 
-/* ARP requests subvert filter */
+/* ARP requests are allowed to bypass the filter */
 c[1]
   -> q;
 
