@@ -214,6 +214,15 @@ AC_DEFUN([CLICK_CHECK_DYNAMIC_LINKING], [
     fi
     AC_SUBST(DL_LIBS)
 
+    DL_LDFLAGS=
+    save_ldflags="$LDFLAGS"; LDFLAGS="$LDFLAGS -rdynamic"
+    AC_MSG_CHECKING([whether linker accepts the -rdynamic flag])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[return 0;]])],
+	[ac_cv_rdynamic=yes; DL_LDFLAGS=-rdynamic], [ac_cv_rdynamic=no])
+    AC_MSG_RESULT($ac_cv_rdynamic)
+    LDFLAGS="$save_ldflags"
+    AC_SUBST(DL_LDFLAGS)
+
     AC_MSG_CHECKING(compiler flags for building loadable modules)
     LDMODULEFLAGS=-shared
     SOSUFFIX=so
@@ -247,6 +256,16 @@ AC_DEFUN([CLICK_CHECK_BUILD_DYNAMIC_LINKING], [
     if test "x$ac_build_have_dlopen" = xyes -a "x$ac_build_have_dlfcn_h" = xyes; then
 	ac_build_have_dynamic_linking=yes
     fi
+
+    BUILD_DL_LDFLAGS=
+    save_ldflags="$LDFLAGS"; LDFLAGS="$LDFLAGS -rdynamic"
+    AC_MSG_CHECKING([whether linker accepts the -rdynamic flag])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[return 0;]])],
+	[ac_cv_build_rdynamic=yes; BUILD_DL_LDFLAGS=-rdynamic], [ac_cv_build_rdynamic=no])
+    AC_MSG_RESULT($ac_cv_build_rdynamic)
+    LDFLAGS="$save_ldflags"
+    AC_SUBST(BUILD_DL_LDFLAGS)
+
     if test "x$ac_build_have_dynamic_linking" != "x$ac_have_dynamic_linking"; then
 	AC_MSG_ERROR([
 =========================================
@@ -358,6 +377,56 @@ AC_DEFUN([CLICK_CHECK_LIBPCAP], [
 	AC_CHECK_FUNCS([pcap_inject pcap_sendpacket pcap_setdirection pcap_setnonblock])
 	LDFLAGS="$saveflags"
     fi
+])
+
+
+dnl
+dnl CLICK_CHECK_NETMAP
+dnl Finds header files for netmap.
+dnl
+
+AC_DEFUN([CLICK_CHECK_NETMAP], [
+    AC_ARG_WITH([netmap],
+	[AS_HELP_STRING([--with-netmap], [enable netmap [no]])],
+	[use_netmap=$withval], [use_netmap=no])
+
+    if test "$use_netmap" != "yes" -a "$use_netmap" != "no"; then
+	if test "${NETMAP_INCLUDES-NO}" != NO; then
+	    :
+	elif test -f "$use_netmap/net/netmap.h"; then
+	    NETMAP_INCLUDES="-I$use_netmap"
+	elif test -f "$use_netmap/include/net/netmap.h"; then
+	    NETMAP_INCLUDES="-I$use_netmap/include"
+	fi
+    fi
+    saveflags="$CPPFLAGS"
+    CPPFLAGS="$saveflags $NETMAP_INCLUDES"
+
+    HAVE_NETMAP=no
+    AC_MSG_CHECKING([for net/netmap.h])
+    AC_PREPROC_IFELSE([AC_LANG_SOURCE([[#include <net/netmap.h>]])],
+	[ac_cv_net_netmap_header_path="found"],
+	[ac_cv_net_netmap_header_path="not found"])
+    AC_MSG_RESULT($ac_cv_net_netmap_header_path)
+
+    if test "$ac_cv_net_netmap_header_path" = "found"; then
+	HAVE_NETMAP=yes
+    fi
+
+    if test "$HAVE_NETMAP" = yes; then
+	AC_CACHE_CHECK([whether net/netmap.h works],
+	    [ac_cv_working_net_netmap_h], [
+	    AC_PREPROC_IFELSE([AC_LANG_SOURCE([[#include <net/netmap.h>]])],
+		[ac_cv_working_net_netmap_h=yes],
+		[ac_cv_working_net_netmap_h=no])])
+	test "$ac_cv_working_net_netmap_h" != yes && HAVE_NETMAP=
+    fi
+
+    CPPFLAGS="$saveflags"
+    if test "$HAVE_NETMAP" = yes -a "$use_netmap" != no; then
+	AC_DEFINE([HAVE_NET_NETMAP_H], [1], [Define if you have the <net/netmap.h> header file.])
+    fi
+    AC_SUBST(NETMAP_INCLUDES)
 ])
 
 
