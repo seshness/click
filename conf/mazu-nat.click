@@ -15,12 +15,12 @@
 //
 //     +---------+
 //    /           \                                              +-------
-//   |             |       +-----------+           +-------+    /        
-//   |  internal   |   ********     ********   **********  |   |         
-//   |  network    |===*intern*     *extern*===*extern_ *  |===| outside 
-//   |             |===*      *     *      *===*next_hop*  |===|  world  
-//   |  *********  |   ********     ********   **********  |   |         
-//   |  *intern_*  |       |  GATEWAY  |           | MODEM |    \        
+//   |             |       +-----------+           +-------+    /
+//   |  internal   |   ********     ********   **********  |   |
+//   |  network    |===*intern*     *extern*===*extern_ *  |===| outside
+//   |             |===*      *     *      *===*next_hop*  |===|  world
+//   |  *********  |   ********     ********   **********  |   |
+//   |  *intern_*  |       |  GATEWAY  |           | MODEM |    \
 //   |  *server *  |       +-----------+           +-------+     +-------
 //    \ ********* /
 //     +---------+
@@ -52,21 +52,20 @@
 // ADDRESS INFORMATION
 
 AddressInfo(
-  intern 	10.0.0.1	10.0.0.0/8	00:50:ba:85:84:a9,
-  extern	209.6.198.213	209.6.198.0/24	00:e0:98:09:ab:af,
-  extern_next_hop				02:00:0a:11:22:1f,
-  intern_server	10.0.0.10
+  intern    10.0.0.1    10.0.0.0/8  00:50:ba:85:84:a9,
+  extern    209.6.198.213   209.6.198.0/24  00:e0:98:09:ab:af,
+  extern_next_hop               02:00:0a:11:22:1f,
+  intern_server 10.0.0.10
 );
-
 
 // DEVICE SETUP
 
 elementclass GatewayDevice {
   $device |
   from :: FromDevice($device)
-	-> output;
+    -> output;
   input -> q :: Queue(1024)
-	-> to :: ToDevice($device);
+    -> to :: ToDevice($device);
   ScheduleInfo(from .1, to 1);
 }
 
@@ -76,11 +75,11 @@ elementclass GatewayDevice {
 elementclass SniffGatewayDevice {
   $device |
   from :: FromDevice($device)
-	-> t1 :: Tee
-	-> output;
+    -> t1 :: Tee
+    -> output;
   input -> q :: Queue(1024)
-	-> t2 :: PullTee
-	-> to :: ToDevice($device);
+    -> t2 :: PullTee
+    -> to :: ToDevice($device);
   t1[1] -> ToHostSniffers;
   t2[1] -> ToHostSniffers($device);
   ScheduleInfo(from .1, to 1);
@@ -90,50 +89,50 @@ extern_dev :: SniffGatewayDevice(extern:eth);
 intern_dev :: SniffGatewayDevice(intern:eth);
 
 ip_to_host :: EtherEncap(0x0800, 1:1:1:1:1:1, intern)
-	-> ToHost;
+    -> ToHost;
 
 
 // ARP MACHINERY
 
 extern_arp_class, intern_arp_class
-	:: Classifier(12/0806 20/0001, 12/0806 20/0002, 12/0800, -);
+    :: Classifier(12/0806 20/0001, 12/0806 20/0002, 12/0800, -);
 intern_arpq :: ARPQuerier(intern);
 
 extern_dev -> extern_arp_class;
-extern_arp_class[0] -> ARPResponder(extern)	// ARP queries
-	-> extern_dev;
-extern_arp_class[1] -> ToHost;			// ARP responses
+extern_arp_class[0] -> ARPResponder(extern) // ARP queries
+    -> extern_dev;
+extern_arp_class[1] -> ToHost;          // ARP responses
 extern_arp_class[3] -> Discard;
 
 intern_dev -> intern_arp_class;
-intern_arp_class[0] -> ARPResponder(intern)	// ARP queries
-	-> intern_dev;
+intern_arp_class[0] -> ARPResponder(intern) // ARP queries
+    -> intern_dev;
 intern_arp_class[1] -> intern_arpr_t :: Tee;
-	intern_arpr_t[0] -> ToHost;
-	intern_arpr_t[1] -> [1]intern_arpq;
+    intern_arpr_t[0] -> ToHost;
+    intern_arpr_t[1] -> [1]intern_arpq;
 intern_arp_class[3] -> Discard;
 
 
 // REWRITERS
 
 IPRewriterPatterns(to_world_pat extern 50000-65535 - -,
-		to_server_pat intern 50000-65535 intern_server -);
+        to_server_pat intern 50000-65535 intern_server -);
 
 rw :: IPRewriter(// internal traffic to outside world
-		 pattern to_world_pat 0 1,
-		 // external traffic redirected to 'intern_server'
-		 pattern to_server_pat 1 0,
-		 // internal traffic redirected to 'intern_server'
-		 pattern to_server_pat 1 1,
-		 // virtual wire to output 0 if no mapping
-		 pass 0,
-		 // virtual wire to output 2 if no mapping
-		 pass 2);
+         pattern to_world_pat 0 1,
+         // external traffic redirected to 'intern_server'
+         pattern to_server_pat 1 0,
+         // internal traffic redirected to 'intern_server'
+         pattern to_server_pat 1 1,
+         // virtual wire to output 0 if no mapping
+         pass 0,
+         // virtual wire to output 2 if no mapping
+         pass 2);
 
 tcp_rw :: TCPRewriter(// internal traffic to outside world
-		pattern to_world_pat 0 1,
-		// everything else is dropped
-		drop);
+        pattern to_world_pat 0 1,
+        // everything else is dropped
+        drop);
 
 
 // OUTPUT PATH
@@ -156,7 +155,7 @@ rw[0] -> ip_to_extern_class :: IPClassifier(dst host intern, -);
 rw[1] -> ip_to_intern;
 // only accept packets from outside world to gateway
 rw[2] -> IPClassifier(dst host extern)
-	-> ip_to_host;
+    -> ip_to_host;
 
 // tcp_rw is used only for FTP control traffic
 tcp_rw[0] -> ip_to_extern;
@@ -166,52 +165,52 @@ tcp_rw[1] -> ip_to_intern;
 // FILTER & REWRITE IP PACKETS FROM OUTSIDE
 
 ip_from_extern :: IPClassifier(dst host extern,
-			-);
+            -);
 my_ip_from_extern :: IPClassifier(dst tcp ssh,
-			dst tcp www or https,
-			src tcp port ftp,
-			tcp or udp,
-			-);
+            dst tcp www or https,
+            src tcp port ftp,
+            tcp or udp,
+            -);
 
 extern_arp_class[2] -> Strip(14)
-  	-> CheckIPHeader
-	-> ip_from_extern;
+    -> CheckIPHeader
+    -> ip_from_extern;
 ip_from_extern[0] -> my_ip_from_extern;
   my_ip_from_extern[0] -> [1]rw; // SSH traffic (rewrite to server)
   my_ip_from_extern[1] -> [1]rw; // HTTP(S) traffic (rewrite to server)
   my_ip_from_extern[2] -> [1]tcp_rw; // FTP control traffic, rewrite w/tcp_rw
   my_ip_from_extern[3] -> [4]rw; // other TCP or UDP traffic, rewrite or to gw
   my_ip_from_extern[4] -> Discard; // non TCP or UDP traffic is dropped
-ip_from_extern[1] -> Discard;	// stuff for other people
+ip_from_extern[1] -> Discard;   // stuff for other people
 
 
 // FILTER & REWRITE IP PACKETS FROM INSIDE
 
 ip_from_intern :: IPClassifier(dst host intern,
-			dst net intern,
-			dst tcp port ftp,
-			-);
+            dst net intern,
+            dst tcp port ftp,
+            -);
 my_ip_from_intern :: IPClassifier(dst tcp ssh,
-			dst tcp www or https,
-			src or dst port dns,
-			dst tcp port auth,
-			tcp or udp,
-			-);
+            dst tcp www or https,
+            src or dst port dns,
+            dst tcp port auth,
+            tcp or udp,
+            -);
 
 intern_arp_class[2] -> Strip(14)
-  	-> CheckIPHeader
-	-> ip_from_intern;
+    -> CheckIPHeader
+    -> ip_from_intern;
 ip_from_intern[0] -> my_ip_from_intern; // stuff for 10.0.0.1 from inside
   my_ip_from_intern[0] -> ip_to_host; // SSH traffic to gw
   my_ip_from_intern[1] -> [2]rw; // HTTP(S) traffic, redirect to server instead
   my_ip_from_intern[2] -> Discard;  // DNS (no DNS allowed yet)
   my_ip_from_intern[3] -> ip_to_host; // auth traffic, gw will reject it
   my_ip_from_intern[4] -> [3]rw; // other TCP or UDP traffic, send to linux
-                             	// but pass it thru rw in case it is the
-				// returning redirect HTTP traffic from server
+                                // but pass it thru rw in case it is the
+                // returning redirect HTTP traffic from server
   my_ip_from_intern[5] -> ip_to_host; // non TCP or UDP traffic, to linux
 ip_from_intern[1] -> ip_to_host; // other net 10 stuff, like broadcasts
 ip_from_intern[2] -> FTPPortMapper(tcp_rw, rw, 0)
-		-> [0]tcp_rw;	// FTP traffic for outside needs special
-				// treatment
-ip_from_intern[3] -> [0]rw;	// stuff for outside
+        -> [0]tcp_rw;   // FTP traffic for outside needs special
+                // treatment
+ip_from_intern[3] -> [0]rw; // stuff for outside

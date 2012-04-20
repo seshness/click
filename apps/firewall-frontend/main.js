@@ -59,7 +59,7 @@ app.post(r_fw_config_url, function (req, res) {
 });
 
 app.listen(SERVER_PORT);
-console.log('listening on ?:39927');
+console.log('listening on 0.0.0.0:' + SERVER_PORT);
 
 /**
 POST /fw_config
