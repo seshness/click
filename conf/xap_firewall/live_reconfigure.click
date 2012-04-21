@@ -14,7 +14,7 @@ input
   // -> EtherEncap(0x0800, 08:00:27:4a:fb:c1, 0a:00:27:00:00:02)
   -> c :: Classifier(12/0800, 12/0806)
   -> CheckIPHeader(14, VERBOSE true)
-  -> ipf :: IPFilter(1 dst port 80, 1 src port 80, 0 all)
+  -> ipf :: IPFilter(0 all)
   -> r :: RandomSample(SAMPLE 0.5) /* Log (sample) good packets */
   -> t :: ToIPSummaryDump(good_packets.log, CONTENTS ip_src sport ip_dst dport ip_len payload)
   -> q :: Queue(20000);
